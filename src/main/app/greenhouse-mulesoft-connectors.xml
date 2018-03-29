@@ -32,6 +32,45 @@ payload map ((payload01 , indexOfPayload01) -> {
         </dw:transform-message>
         <echo-component doc:name="Echo"/>
     </flow>
+    <flow name="fetch-applications-and-candidates">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/applications" allowedMethods="GET" doc:name="HTTP">
+            <http:response-builder statusCode="200"/>
+        </http:listener>
+        <set-variable variableName="authorization" value="#[message.inboundProperties.'Authorization']" doc:name="Set Authorization From Header"/>
+        <set-variable variableName="maxPages" value="5" doc:name="Set maxPages"/>
+        <set-variable variableName="page" value="1" doc:name="Set page"/>
+        <set-variable variableName="perPage" value="100" doc:name="Set perPage"/>
+        <set-variable variableName="data" value="#[[]]" doc:name="Set Data to Empty List"/>
+        <flow-ref name="fetch-applications-with-paging" doc:name="Fetch Applications from Harvest" metadata:id="50488820-0996-453f-9492-478f14c76c97"/>
+        <foreach doc:name="For Each">
+            <flow-ref name="fetch-candidate-per-application" doc:name="Fetch Each Candidate Per Application and Add to Data"/>
+        </foreach>
+        <dw:transform-message doc:name="Convert into one big CSV" metadata:id="ee2ac156-e3cf-4797-a81d-857fc8431382">
+            <dw:input-payload mimeType="application/java"/>
+            <dw:input-variable mimeType="application/java" variableName="data"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/csv quoteValues=true
+---
+flowVars.data map ((payload01 , indexOfPayload01) -> {
+	application_id: payload01.application_id,
+	candidate_id: payload01.candidate_id,
+	prospect: payload01.prospect as :string,
+	job_ids: payload01.job_ids default [] joinBy ",",
+	first_name: payload01.first_name,
+	last_name: payload01.last_name,
+	source: payload01.source,
+	referrer: payload01.referrer,
+	current_stage: payload01.current_stage,
+	emails: payload01.emails default [] joinBy ",",
+	company: payload01.company,
+	title: payload01.title,
+	last_activity: payload01.last_activity,
+	is_private: payload01.is_private,
+	photo_url: payload01.photo_url
+})]]></dw:set-payload>
+        </dw:transform-message>
+        <echo-component doc:name="Echo"/>
+    </flow>
     <flow name="fetch-all">
         <http:listener config-ref="HTTP_Listener_Configuration" path="/all" allowedMethods="GET" doc:name="HTTP"/>
         <set-variable variableName="authorization" value="#[message.inboundProperties.'Authorization']" doc:name="Set Authorization From Header"/>
@@ -74,44 +113,6 @@ payload map ((payload01 , indexOfPayload01) -> {
                 </dw:transform-message>
             </otherwise>
         </choice>
-    </flow>
-    <flow name="fetch-applications-and-candidates">
-        <http:listener config-ref="HTTP_Listener_Configuration" path="/applications" allowedMethods="GET" doc:name="HTTP">
-            <http:response-builder statusCode="200"/>
-        </http:listener>
-        <set-variable variableName="page" value="1" doc:name="Set page"/>
-        <set-variable variableName="perPage" value="100" doc:name="Set perPage"/>
-        <set-variable variableName="authorization" value="#[message.inboundProperties.'Authorization']" doc:name="Set Authorization From Header"/>
-        <set-variable variableName="data" value="#[[]]" doc:name="Set Data to Empty List"/>
-        <flow-ref name="fetch-applications-with-paging" doc:name="Fetch Applications" metadata:id="50488820-0996-453f-9492-478f14c76c97"/>
-        <foreach doc:name="For Each">
-            <flow-ref name="fetch-candidate-per-application" doc:name="Fetch Each Candidate Per Application and Add to Data"/>
-        </foreach>
-        <dw:transform-message doc:name="Convert into one big CSV" metadata:id="ee2ac156-e3cf-4797-a81d-857fc8431382">
-            <dw:input-payload mimeType="application/java"/>
-            <dw:input-variable mimeType="application/java" variableName="data"/>
-            <dw:set-payload><![CDATA[%dw 1.0
-%output application/csv quoteValues=true
----
-flowVars.data map ((payload01 , indexOfPayload01) -> {
-	application_id: payload01.application_id,
-	candidate_id: payload01.candidate_id,
-	prospect: payload01.prospect as :string,
-	job_ids: payload01.job_ids default [] joinBy ",",
-	first_name: payload01.first_name,
-	last_name: payload01.last_name,
-	source: payload01.source,
-	referrer: payload01.referrer,
-	current_stage: payload01.current_stage,
-	emails: payload01.emails default [] joinBy ",",
-	company: payload01.company,
-	title: payload01.title,
-	last_activity: payload01.last_activity,
-	is_private: payload01.is_private,
-	photo_url: payload01.photo_url
-})]]></dw:set-payload>
-        </dw:transform-message>
-        <echo-component doc:name="Echo"/>
     </flow>
     <flow name="fetch-candidate-per-application">
         <set-variable variableName="application" value="#[payload]" doc:name=" Set Application Data"/>
