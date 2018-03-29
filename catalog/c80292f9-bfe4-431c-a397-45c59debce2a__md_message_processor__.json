@@ -1,0 +1,32 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "model": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "ghr-application-with-candidate"
+            },
+            "isArray": false,
+            "dataType": "LIST",
+            "metaDataModelPropertiesManager": {
+                "properties": []
+            }
+        }
+    },
+    "outputMessageMetadata": {
+        "flowVariables": {
+            "data": {
+                "model": {
+                    "connectorName": "#_custom_mule_metadata_type_#",
+                    "typeId": "ghr-application-with-candidate"
+                },
+                "isArray": false,
+                "dataType": "LIST",
+                "metaDataModelPropertiesManager": {
+                    "properties": []
+                }
+            }
+        }
+    },
+    "id": "c80292f9-bfe4-431c-a397-45c59debce2a",
+    "version": "5.2.0.0"
+}

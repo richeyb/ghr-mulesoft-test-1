@@ -1,0 +1,16 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "greenhouse-applications-json"
+        }
+    },
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "ghr-application"
+        }
+    },
+    "id": "653fbbdf-b848-494a-b511-04744c16d02f",
+    "version": "5.2.0.0"
+}
