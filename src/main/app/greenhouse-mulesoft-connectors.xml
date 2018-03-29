@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+<mule xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
@@ -8,7 +8,9 @@ http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/cor
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
-http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd">
     <http:request-config name="harvest-request-config" host="localhost" port="5000" basePath="v1" doc:name="HTTP Request Configuration" >
     </http:request-config>
     <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
@@ -37,9 +39,9 @@ payload map ((payload01 , indexOfPayload01) -> {
             <http:response-builder statusCode="200"/>
         </http:listener>
         <set-variable variableName="authorization" value="#[message.inboundProperties.'Authorization']" doc:name="Set Authorization From Header"/>
-        <set-variable variableName="maxPages" value="5" doc:name="Set maxPages"/>
+        <set-variable variableName="maxPages" value="1" doc:name="Set maxPages"/>
         <set-variable variableName="page" value="1" doc:name="Set page"/>
-        <set-variable variableName="perPage" value="100" doc:name="Set perPage"/>
+        <set-variable variableName="perPage" value="3" doc:name="Set perPage"/>
         <set-variable variableName="data" value="#[[]]" doc:name="Set Data to Empty List"/>
         <flow-ref name="fetch-applications-with-paging" doc:name="Fetch Applications from Harvest" metadata:id="50488820-0996-453f-9492-478f14c76c97"/>
         <foreach doc:name="For Each">
@@ -51,7 +53,7 @@ payload map ((payload01 , indexOfPayload01) -> {
             <dw:set-payload><![CDATA[%dw 1.0
 %output application/csv quoteValues=true
 ---
-flowVars.data map ((payload01 , indexOfPayload01) -> {
+(flatten flowVars.data) map ((payload01 , indexOfPayload01) -> {
 	application_id: payload01.application_id,
 	candidate_id: payload01.candidate_id,
 	prospect: payload01.prospect as :string,
@@ -81,6 +83,9 @@ flowVars.data map ((payload01 , indexOfPayload01) -> {
         <flow-ref name="fetch-applications-with-paging" doc:name="Fetch Application Data from Harvest"/>
     </flow>
     <flow name="fetch-applications-with-paging">
+        <scripting:component doc:name="Sleep for 1ms">
+            <scripting:script engine="jruby"><![CDATA[sleep(0.1)]]></scripting:script>
+        </scripting:component>
         <flow-ref name="greenhouse-fetch-applications" doc:name="Fetch Applications from Greenhouse" metadata:id="a1220840-73f7-4dbf-a88d-e80c8dc6b5f6"/>
         <set-variable variableName="isMore" value="#[payload.size() &gt; 0 and flowVars.page &lt; flowVars.maxPages]" doc:name="Check To See If There Is More Data" metadata:id="04fd8191-7ca3-464b-828a-1491f1db89c0"/>
         <expression-component doc:name="Expression"><![CDATA[flowVars.data.add(payload)]]></expression-component>
@@ -92,32 +97,32 @@ flowVars.data map ((payload01 , indexOfPayload01) -> {
             </when>
             <otherwise>
                 <set-payload value="#[flowVars.data]" doc:name="Set Payload"/>
-                <echo-component doc:name="Echo"/>
-                <dw:transform-message doc:name="Transform Message" metadata:id="1db5c55b-1fb2-4809-8b68-dfebb6e79884">
-                    <dw:input-payload mimeType="application/json"/>
+                <dw:transform-message doc:name="Transform Message" metadata:id="52006cdc-c0f2-4284-bdc3-19d9ede597c2">
+                    <dw:input-payload mimeType="application/java"/>
                     <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
-payload map ((payload01 , indexOfPayload01) -> {
-	application_id: payload01.id as :string,
-	candidate_id: payload01.candidate_id as :string,
+flatten payload map ((payload01 , indexOfPayload01) -> {
+	application_id: payload01.application_id,
+	candidate_id: payload01.candidate_id,
 	prospect: payload01.prospect,
-	applied_at: payload01.applied_at as :datetime,
-	rejected_at: payload01.rejected_at as :datetime,
-	last_activity_at: payload01.last_activity_at as :datetime,
-	source: payload01.source.public_name,
-	job_ids: payload01.jobs default [] map ((j, i) -> j.id),
-	referrer: payload01.credited_to.name,
-	current_stage: payload01.current_stage.name
+	applied_at: payload01.applied_at,
+	rejected_at: payload01.rejected_at,
+	last_activity_at: payload01.last_activity_at,
+	source: payload01.source,
+	job_ids: payload01.job_ids map ((jobid , indexOfJobid) -> jobid),
+	referrer: payload01.referrer,
+	current_stage: payload01.current_stage
 })]]></dw:set-payload>
                 </dw:transform-message>
+                <echo-component doc:name="Echo"/>
             </otherwise>
         </choice>
     </flow>
     <flow name="fetch-candidate-per-application">
         <set-variable variableName="application" value="#[payload]" doc:name=" Set Application Data"/>
         <set-variable variableName="candidateId" value="#[payload.candidate_id]" doc:name="Set Candidate ID"/>
-        <scripting:component doc:name="Sleep for 1 second">
+        <scripting:component doc:name="Sleep for 1ms">
             <scripting:script engine="jruby"><![CDATA[sleep(0.1)]]></scripting:script>
         </scripting:component>
         <flow-ref name="greenhouse-fetch-candidate-flow" doc:name="Fetch Candidate Information"/>
@@ -189,9 +194,11 @@ payload map ((payload01 , indexOfPayload01) -> {
 	application_id: payload01.id,
 	candidate_id: payload01.candidate_id,
 	prospect: payload01.prospect,
-	last_activity_at: payload01.last_activity_at as :datetime,
+	applied_at: payload01.applied_at,
+	rejected_at: payload01.rejected_at,
+	last_activity_at: payload01.last_activity_at,
 	source: payload01.source.public_name,
-	job_ids: payload01.jobs.id,
+	job_ids: payload01.jobs default [] map ((j, i) -> j.id),
 	referrer: payload01.credited_to.name,
 	current_stage: payload01.current_stage.name
 })]]></dw:set-payload>
@@ -202,10 +209,26 @@ payload map ((payload01 , indexOfPayload01) -> {
             <http:request-builder>
                 <http:header headerName="Authorization" value="#[flowVars.authorization]"/>
             </http:request-builder>
+            <http:success-status-code-validator values="200..599"/>
         </http:request>
-        <dw:transform-message doc:name="Transform Message" metadata:id="613ea5b1-81c1-472e-8701-a71ac4d2534b">
-            <dw:input-payload mimeType="application/json"/>
-            <dw:set-payload><![CDATA[%dw 1.0
+        <choice doc:name="Choice">
+            <when expression="#[message.inboundProperties['http.status'] != 200]">
+                <logger message="No Candidate Data Received! Status: #[message.inboundProperties['http.status']]" level="INFO" doc:name="Logger"/>
+                <set-payload value="{
+  candidate_id: &quot;&quot;,
+  first_name: &quot;Candidate&quot;,
+  last_name: &quot;Deleted&quot;,
+  company: &quot;&quot;,
+  title: &quot;&quot;,
+  is_private: false,
+  photo_url: &quot;&quot;,
+  emails: []
+}" doc:name="Set Payload" metadata:id="3498bbf0-a2f4-4dd7-8ae9-ebb44712e06f"/>
+            </when>
+            <otherwise>
+                <dw:transform-message doc:name="Transform Message" metadata:id="613ea5b1-81c1-472e-8701-a71ac4d2534b">
+                    <dw:input-payload mimeType="application/json"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
 {
@@ -218,6 +241,8 @@ payload map ((payload01 , indexOfPayload01) -> {
 	photo_url: payload.photo_url,
 	emails: payload.email_addresses map ((e, i) -> e.value) when (payload.email_addresses?) otherwise []
 }]]></dw:set-payload>
-        </dw:transform-message>
+                </dw:transform-message>
+            </otherwise>
+        </choice>
     </flow>
 </mule>

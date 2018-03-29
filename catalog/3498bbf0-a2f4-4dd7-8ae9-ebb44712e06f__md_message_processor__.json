@@ -1,0 +1,11 @@
+{
+    "inputMessageMetadata": {},
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "ghr-candidate"
+        }
+    },
+    "id": "3498bbf0-a2f4-4dd7-8ae9-ebb44712e06f",
+    "version": "5.2.0.0"
+}

@@ -1,0 +1,13 @@
+{
+    "inputMessageMetadata": {},
+    "outputMessageMetadata": {
+        "outboundProperties": {
+            "httpStatus": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "Test"
+            }
+        }
+    },
+    "id": "a5204c27-bdb1-4484-a23a-f92eea81d21c",
+    "version": "5.2.0.0"
+}

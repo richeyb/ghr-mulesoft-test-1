@@ -103,8 +103,8 @@
       <org.mule.common.metadata.DefaultMetaDataField>
         <name>applied_at</name>
         <model class="org.mule.common.metadata.DefaultSimpleMetaDataModel">
-          <implementationClass>java.util.Calendar</implementationClass>
-          <dataType>DATE_TIME</dataType>
+          <implementationClass>java.lang.String</implementationClass>
+          <dataType>STRING</dataType>
           <metaDataModelPropertiesManager>
             <properties/>
           </metaDataModelPropertiesManager>
@@ -123,6 +123,7 @@
                 <org.mule.common.query.expression.GreaterOperator/>
                 <org.mule.common.query.expression.GreaterOrEqualsOperator/>
                 <org.mule.common.query.expression.NotEqualsOperator/>
+                <org.mule.common.query.expression.LikeOperator/>
               </supportedOperators>
             </org.mule.common.metadata.field.property.dsql.DsqlQueryOperatorsMetaDataFieldProperty>
           </properties>
@@ -131,8 +132,8 @@
       <org.mule.common.metadata.DefaultMetaDataField>
         <name>rejected_at</name>
         <model class="org.mule.common.metadata.DefaultSimpleMetaDataModel">
-          <implementationClass>java.util.Calendar</implementationClass>
-          <dataType>DATE_TIME</dataType>
+          <implementationClass>java.lang.String</implementationClass>
+          <dataType>STRING</dataType>
           <metaDataModelPropertiesManager>
             <properties/>
           </metaDataModelPropertiesManager>
@@ -151,6 +152,7 @@
                 <org.mule.common.query.expression.GreaterOperator/>
                 <org.mule.common.query.expression.GreaterOrEqualsOperator/>
                 <org.mule.common.query.expression.NotEqualsOperator/>
+                <org.mule.common.query.expression.LikeOperator/>
               </supportedOperators>
             </org.mule.common.metadata.field.property.dsql.DsqlQueryOperatorsMetaDataFieldProperty>
           </properties>
