@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore" xmlns:dropbox="http://www.mulesoft.org/schema/mule/dropbox" xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
@@ -10,10 +10,13 @@ http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
 http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
-http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd">
-    <http:request-config name="harvest-request-config" host="localhost" port="5000" basePath="v1" doc:name="HTTP Request Configuration" >
+http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+
+    <http:request-config name="harvest-request-config" host="harvest.greenhouse.io" port="443" basePath="v1" doc:name="HTTP Request Configuration" protocol="HTTPS">
     </http:request-config>
     <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <http:request-config name="dropbox-content-upload" protocol="HTTPS" host="content.dropboxapi.com" port="443" basePath="2" doc:name="HTTP Request Configuration"/>
     <flow name="convert-candidates-to-csv">
         <http:listener config-ref="HTTP_Listener_Configuration" path="/candidates" allowedMethods="GET" doc:name="HTTP"/>
         <flow-ref name="harvest-candidates-flow" doc:name="Fetch Candidates From Harvest"/>
@@ -39,9 +42,10 @@ payload map ((payload01 , indexOfPayload01) -> {
             <http:response-builder statusCode="200"/>
         </http:listener>
         <set-variable variableName="authorization" value="#[message.inboundProperties.'Authorization']" doc:name="Set Authorization From Header"/>
-        <set-variable variableName="maxPages" value="1" doc:name="Set maxPages"/>
+        <set-variable variableName="maxPages" value="9999" doc:name="Set maxPages"/>
         <set-variable variableName="page" value="1" doc:name="Set page"/>
-        <set-variable variableName="perPage" value="3" doc:name="Set perPage"/>
+        <set-variable variableName="perPage" value="10" doc:name="Set perPage"/>
+        <set-variable variableName="lastActivityAfter" value="#[server.dateTime.plusDays(-7)]" doc:name="Set lastActivityAfter"/>
         <set-variable variableName="data" value="#[[]]" doc:name="Set Data to Empty List"/>
         <flow-ref name="fetch-applications-with-paging" doc:name="Fetch Applications from Harvest" metadata:id="50488820-0996-453f-9492-478f14c76c97"/>
         <foreach doc:name="For Each">
@@ -71,7 +75,20 @@ payload map ((payload01 , indexOfPayload01) -> {
 	photo_url: payload01.photo_url
 })]]></dw:set-payload>
         </dw:transform-message>
+        <flow-ref name="upload-to-dropbox" doc:name="Upload File to Dropbox"/>
         <echo-component doc:name="Echo"/>
+    </flow>
+    <flow name="upload-to-dropbox">
+        <http:request config-ref="dropbox-content-upload" path="files/upload" method="POST" doc:name="Upload File to Dropbox">
+            <http:request-builder>
+                <http:header headerName="Content-Type" value="text/plain;charset=dropbox-cors-hack"/>
+                <http:header headerName="Dropbox-API-Arg" value="{&quot;path&quot;: &quot;/exports/candidates.csv&quot;}"/>
+                <http:header headerName="Authorization" value="Bearer yd5bJoazLrAAAAAAAAADNA7wvajpZQ3Dy_XaKcTzlkPAQ3XWJs7lAZYt9fcfklOa"/>
+            </http:request-builder>
+        </http:request>
+        <catch-exception-strategy doc:name="Catch Exception Strategy">
+            <logger message="Failure: #[message] #[payload]" level="INFO" doc:name="Logger"/>
+        </catch-exception-strategy>
     </flow>
     <flow name="fetch-all">
         <http:listener config-ref="HTTP_Listener_Configuration" path="/all" allowedMethods="GET" doc:name="HTTP"/>
@@ -181,7 +198,7 @@ payload map ((payload01 , indexOfPayload01) -> {
             <http:request-builder>
                 <http:query-param paramName="per_page" value="#[flowVars.perPage]"/>
                 <http:query-param paramName="page" value="#[flowVars.page]"/>
-                <http:query-param paramName="created_after" value="2017-10-04T00:00:00.000Z"/>
+                <http:query-param paramName="last_activity_after" value="#[flowVars.lastActivityAfter]"/>
                 <http:header headerName="Authorization" value="#[flowVars.authorization]"/>
             </http:request-builder>
         </http:request>
